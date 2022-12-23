@@ -12,7 +12,9 @@ export type WsPublicSpotTopic =
   | 'candle5m'
   | 'candle1m'
   | 'books'
+  | 'books1'
   | 'books5'
+  | 'books15'
   | 'trade';
 
 // Futures currently has the same public topics as spot

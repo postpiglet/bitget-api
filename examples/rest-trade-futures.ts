@@ -2,9 +2,31 @@ import {
   FuturesClient,
   isWsFuturesAccountSnapshotEvent,
   isWsFuturesPositionsSnapshotEvent,
-  NewFuturesOrder,
   WebsocketClient,
 } from '../src';
+
+import {
+  APIResponse,
+  KlineInterval,
+  FuturesProductType,
+  FuturesAccountBillRequest,
+  FuturesBusinessBillRequest,
+  NewFuturesOrder,
+  NewBatchFuturesOrder,
+  FuturesPagination,
+  NewFuturesPlanOrder,
+  ModifyFuturesPlanOrder,
+  ModifyFuturesPlanOrderTPSL,
+  NewFuturesPlanPositionTPSL,
+  ModifyFuturesPlanStopOrder,
+  CancelFuturesPlanTPSL,
+  HistoricPlanOrderTPSLRequest,
+  NewFuturesPlanStopOrder,
+  FuturesAccount,
+  FuturesSymbolRule,
+  FuturesMarginMode,
+  FuturesPosition,
+} from '../src/types';
 
 // or
 // import {
@@ -16,9 +38,9 @@ import {
 // } from 'bitget-api';
 
 // read from environmental variables
-const API_KEY = process.env.API_KEY_COM;
-const API_SECRET = process.env.API_SECRET_COM;
-const API_PASS = process.env.API_PASS_COM;
+const API_KEY = 'bg_c795a18f36421db7c40cd7df2c9e1b7c';
+const API_SECRET = 'ecf877c45807106b2064055a8ddd7c21789fa600e98f6e2d7851e5daeaba644f';
+const API_PASS = '2205qlxmrpt';
 
 const client = new FuturesClient({
   apiKey: API_KEY,
@@ -109,7 +131,7 @@ async function handleWsUpdate(event) {
     // const balances = allBalances.filter((bal) => Number(bal.available) != 0);
     const usdtAmount = accountBalance.available;
     console.log('USDT balance: ', usdtAmount);
-
+    
     if (!usdtAmount) {
       console.error('No USDT to trade');
       return;
@@ -125,6 +147,9 @@ async function handleWsUpdate(event) {
       console.error('Failed to get trading rules for ' + symbol);
       return;
     }
+
+    await client.setMarginMode(symbol, marginCoin, 'fixed')
+    await client.setLeverage(symbol, marginCoin, '10', 'long')
 
     const order: NewFuturesOrder = {
       marginCoin,

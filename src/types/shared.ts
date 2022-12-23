@@ -5,10 +5,10 @@ export type numberInString = string;
 export type OrderSide = 'Buy' | 'Sell';
 
 export type KlineInterval =
-  | '1min'
-  | '5min'
-  | '15min'
-  | '30min'
+  | '1m'
+  | '5m'
+  | '15m'
+  | '30m'
   | '1h'
   | '4h'
   | '6h'

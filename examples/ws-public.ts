@@ -1,3 +1,4 @@
+import { watch } from 'fs';
 import { DefaultLogger, WS_KEY_MAP, WebsocketClient } from '../src';
 
 // or
