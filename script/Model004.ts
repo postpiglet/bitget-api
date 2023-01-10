@@ -6,6 +6,7 @@ import {
   WebsocketClient,
   WS_KEY_MAP,
   FuturesSymbolRule,
+  FuturesHoldSide,
 } from '../src';
 
 //import technicalindic from 'technicalindicators'
@@ -213,10 +214,11 @@ class OrderInfo {
 
     const orderInfo = new OrderInfo("", POSITION_SIDE.NONE, false, 0, {})
     const marginCoin = 'USDT'
-    const leverageValue:number = 0.4
+    let leverageValue:number = 0.4
     const splitOpenValue:number = 0.25
 
     const symbolsInfo = await client.getSymbols('umcbl');
+    //let getPosition = await client.getPosition('THETAUSDT_UMCBL', marginCoin)
     //let openSize = await (await client.getOpenCount('IOTAUSDT_UMCBL', marginCoin, 0.1715, 25, 20)).data['openCount']
     while(true)
     {
@@ -240,15 +242,23 @@ class OrderInfo {
 
         if(orderInfo.side == POSITION_SIDE.LONG)
         {
-          if(getPosition.data[0].margin != '0')
+          let positionData;
+          for(var i = 0; i < getPosition.data.length; ++i)
+          {
+            if(getPosition.data[i].holdSide == 'long')
+              positionData = getPosition.data[i]
+          }
+
+          if(positionData.margin != '0')
           {           
-            let profitPersent = (parseFloat(getPosition.data[0].unrealizedPL) / parseFloat(getPosition.data[0].margin)) * 100
+            let profitPersent = (parseFloat(positionData.unrealizedPL) / parseFloat(positionData.margin)) * 100
 
             if(orderInfo.isPointed)
             {
               if(profitPersent >= 25)
               {
                 isClose = true
+                leverageValue = 0.4
               }
               else
               {
@@ -274,6 +284,10 @@ class OrderInfo {
                     {
                       //손절
                       isClose = true
+
+                      leverageValue += 0.1
+                      if(leverageValue > 0.6)
+                        leverageValue = 0.6
                     }
                     break
                 }
@@ -295,6 +309,7 @@ class OrderInfo {
                 if(profitPersent >= 8)
                 {
                   isClose = true
+                  leverageValue = 0.4
                 }
                 else
                 {
@@ -309,24 +324,28 @@ class OrderInfo {
                       }
                       break
                     case 2:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -6)
                       {
                         isOpen = true
                         addOpenSplitValue = 0.5
                       }
                       break
                     case 3:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -7)
                       {
                         isOpen = true
                         addOpenSplitValue = 1
                       }
                       break
                     case 4:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -8)
                       {
                         //손절
                         isClose = true
+
+                        leverageValue += 0.1
+                        if(leverageValue > 0.6)
+                          leverageValue = 0.6
                       }
                       break
                   }
@@ -340,28 +359,28 @@ class OrderInfo {
                 marginCoin: marginCoin,
                 orderType: 'market',
                 side: 'close_long',
-                size: getPosition.data[0].available,
-                symbol: getPosition.data[0].symbol,
+                size: positionData.available,
+                symbol: positionData.symbol,
               };
               const result = await client.submitOrder(closingOrder);
       
-              SendNotiMsg(`${new Date(result.requestTime)}\n isTrigger:${orderInfo.isTrigger}\n${orderInfo.symbol} Close Long Position \n${JSON.stringify(result.data)}`)
+              SendNotiMsg(`${new Date(result.requestTime)}\n leverageValue:${leverageValue}\n isTrigger:${orderInfo.isTrigger}\n${orderInfo.symbol} Close Long Position \n${JSON.stringify(result.data)}`)
               orderInfo.ReSet()
             }
             else if(isOpen)
             {
-              let accountResult = await client.getAccount(getPosition.data[0].symbol, marginCoin);
+              let accountResult = await client.getAccount(positionData.symbol, marginCoin);
               let accountData = accountResult.data;
               let openAmount = Math.floor(accountData.fixedMaxAvailable * addOpenSplitValue)              
 
-              let openSize = (await client.getOpenCount(getPosition.data[0].symbol, marginCoin, closeArray[closeArray.length-1], openAmount, accountData.fixedLongLeverage)).data['openCount']
+              let openSize = (await client.getOpenCount(positionData.symbol, marginCoin, closeArray[closeArray.length-1], openAmount, accountData.fixedLongLeverage)).data['openCount']
   
               const order: NewFuturesOrder = {
                 marginCoin,
                 orderType: 'market',
                 side: 'open_long',
                 size: openSize.toString(),
-                symbol: getPosition.data[0].symbol,
+                symbol: positionData.symbol,
               } as const;
               const result = await client.submitOrder(order);
               orderInfo.orderCandle.push(candle_15m[candle_15m.length-1])
@@ -377,9 +396,16 @@ class OrderInfo {
         }
         else if(orderInfo.side == POSITION_SIDE.SHORT)
         {
-          if(getPosition.data[1].margin != '0')
+          let positionData;
+          for(var i = 0; i < getPosition.data.length; ++i)
           {
-            let profitPersent = (parseFloat(getPosition.data[1].unrealizedPL) / parseFloat(getPosition.data[1].margin)) * 100
+            if(getPosition.data[i].holdSide == 'short')
+              positionData = getPosition.data[i]
+          }
+
+          if(positionData.margin != '0')
+          {
+            let profitPersent = (parseFloat(positionData.unrealizedPL) / parseFloat(positionData.margin)) * 100
 
             if(orderInfo.isPointed)
             {
@@ -446,21 +472,21 @@ class OrderInfo {
                       }
                       break
                     case 2:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -6)
                       {
                         isOpen = true
                         addOpenSplitValue = 0.5
                       }
                       break
                     case 3:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -7)
                       {
                         isOpen = true
                         addOpenSplitValue = 1
                       }
                       break
                     case 4:
-                      if(profitPersent <= -5)
+                      if(profitPersent <= -8)
                       {
                         //손절
                         isClose = true
@@ -477,28 +503,28 @@ class OrderInfo {
                 marginCoin: marginCoin,
                 orderType: 'market',
                 side: 'close_short',
-                size: getPosition.data[1].available,
-                symbol: getPosition.data[1].symbol,
+                size: positionData.available,
+                symbol: positionData.symbol,
               };
               const result = await client.submitOrder(closingOrder);
       
-              SendNotiMsg(`${new Date(result.requestTime)}\n isTrigger:${orderInfo.isTrigger}\n${orderInfo.symbol} Close Short Position \n${JSON.stringify(result.data)}`)
+              SendNotiMsg(`${new Date(result.requestTime)}\n leverageValue:${leverageValue}\n isTrigger:${orderInfo.isTrigger}\n${orderInfo.symbol} Close Short Position \n${JSON.stringify(result.data)}`)
               orderInfo.ReSet()
             }
             else if(isOpen)
             {
-              let accountResult = await client.getAccount(getPosition.data[1].symbol, marginCoin);
+              let accountResult = await client.getAccount(positionData.symbol, marginCoin);
               let accountData = accountResult.data;
               let openAmount = Math.floor(accountData.fixedMaxAvailable * addOpenSplitValue)              
 
-              let openSize = (await client.getOpenCount(getPosition.data[1].symbol, marginCoin, closeArray[closeArray.length-1], openAmount, accountData.fixedShortLeverage)).data['openCount']
+              let openSize = (await client.getOpenCount(positionData.symbol, marginCoin, closeArray[closeArray.length-1], openAmount, accountData.fixedShortLeverage)).data['openCount']
   
               const order: NewFuturesOrder = {
                 marginCoin,
                 orderType: 'market',
                 side: 'open_short',
                 size: openSize.toString(),
-                symbol: getPosition.data[1].symbol,
+                symbol: positionData.symbol,
               } as const;
               const result = await client.submitOrder(order);
               orderInfo.orderCandle.push(candle_15m[candle_15m.length-1])
@@ -539,7 +565,7 @@ class OrderInfo {
           let isOpenOderShort = false
           let isPointed = false
 
-          if(rsiArray[rsiArray.length-1] > 88)
+          if(rsiArray[rsiArray.length-1] > 87)
           {
             let curCandleSize = GetCandleSize(candle_5m[candle_5m.length-1][CANDLE_INDEX.HIGH], candle_5m[candle_5m.length-1][CANDLE_INDEX.LOW])
             let preCandleSize = GetCandleSize(candle_5m[candle_5m.length-2][CANDLE_INDEX.HIGH], candle_5m[candle_5m.length-2][CANDLE_INDEX.LOW])
@@ -612,13 +638,13 @@ class OrderInfo {
                   }
                 }
               }
-              else if(minIndex2 == rsiArrayCuted.length-2 || minIndex2 == rsiArrayCuted.length-3)
-              {
-                if(closeArrayCuted[minIndex2] <= closeArrayCuted[minIndex1])
-                {                 
-                  isOpenOderLong = true
-                }
-              }       
+              // else if(minIndex2 == rsiArrayCuted.length-2 || minIndex2 == rsiArrayCuted.length-3)
+              // {
+              //   if(closeArrayCuted[rsiArrayCuted.length-1] <= closeArrayCuted[minIndex1])
+              //   {                 
+              //     isOpenOderLong = true
+              //   }
+              // }       
             }
             else if(maxIndex2 > maxIndex1 
               && (maxIndex2 - maxIndex1) >= 3
@@ -637,13 +663,13 @@ class OrderInfo {
                     }
                 }
               }
-              else if(maxIndex2 == rsiArrayCuted.length-2 || maxIndex2 == rsiArrayCuted.length-3)
-              {
-                if(closeArrayCuted[maxIndex2] >= closeArrayCuted[maxIndex1])
-                {
-                  isOpenOderShort = true
-                }
-              }                   
+              // else if(maxIndex2 == rsiArrayCuted.length-2 || maxIndex2 == rsiArrayCuted.length-3)
+              // {
+              //   if(closeArrayCuted[rsiArrayCuted.length-1] >= closeArrayCuted[maxIndex1])
+              //   {
+              //     isOpenOderShort = true
+              //   }
+              // }
             }
           }
 
