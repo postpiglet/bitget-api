@@ -26,6 +26,48 @@ interface UnsignedRequest<T extends object | undefined = {}> {
 
 type SignMethod = 'bitget';
 
+const ENABLE_HTTP_TRACE =
+  typeof process === 'object' &&
+  typeof process.env === 'object' &&
+  process.env.BITGETTRACE;
+
+if (ENABLE_HTTP_TRACE) {
+  axios.interceptors.request.use((request) => {
+    console.log(
+      new Date(),
+      'Starting Request',
+      JSON.stringify(
+        {
+          url: request.url,
+          method: request.method,
+          params: request.params,
+          data: request.data,
+        },
+        null,
+        2,
+      ),
+    );
+    return request;
+  });
+  axios.interceptors.response.use((response) => {
+    console.log(new Date(), 'Response:', {
+      // request: {
+      //   url: response.config.url,
+      //   method: response.config.method,
+      //   data: response.config.data,
+      //   headers: response.config.headers,
+      // },
+      response: {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+      },
+    });
+    return response;
+  });
+}
+
 export default abstract class BaseRestClient {
   private options: RestClientOptions;
   private baseUrl: string;
@@ -44,12 +86,13 @@ export default abstract class BaseRestClient {
    */
   constructor(
     restOptions: RestClientOptions = {},
-    networkOptions: AxiosRequestConfig = {}
+    networkOptions: AxiosRequestConfig = {},
   ) {
     this.options = {
       recvWindow: 5000,
       /** Throw errors if any request params are empty */
       strictParamValidation: false,
+      encodeQueryStringValues: true,
       ...restOptions,
     };
 
@@ -77,7 +120,7 @@ export default abstract class BaseRestClient {
       credentials.some((v) => typeof v === 'string')
     ) {
       throw new Error(
-        'API Key, Secret & Passphrase are ALL required to use the authenticated REST client'
+        'API Key, Secret & Passphrase are ALL required to use the authenticated REST client',
       );
     }
   }
@@ -109,11 +152,11 @@ export default abstract class BaseRestClient {
     method: Method,
     endpoint: string,
     params?: any,
-    isPublicApi?: boolean
+    isPublicApi?: boolean,
   ): Promise<any> {
     // Sanity check to make sure it's only ever prefixed by one forward slash
     const requestUrl = [this.baseUrl, endpoint].join(
-      endpoint.startsWith('/') ? '' : '/'
+      endpoint.startsWith('/') ? '' : '/',
     );
 
     // Build a request and handle signature process
@@ -122,10 +165,12 @@ export default abstract class BaseRestClient {
       endpoint,
       requestUrl,
       params,
-      isPublicApi
+      isPublicApi,
     );
 
-    // console.log('full request: ', options);
+    if (ENABLE_HTTP_TRACE) {
+      console.log('full request: ', options);
+    }
 
     // Dispatch request
     return axios(options)
@@ -188,7 +233,7 @@ export default abstract class BaseRestClient {
     data: T,
     endpoint: string,
     method: Method,
-    signMethod: SignMethod
+    signMethod: SignMethod,
   ): Promise<SignedRequest<T>> {
     const timestamp = Date.now();
 
@@ -209,11 +254,17 @@ export default abstract class BaseRestClient {
 
     // It's possible to override the recv window on a per rquest level
     const strictParamValidation = this.options.strictParamValidation;
+    const encodeQueryStringValues = this.options.encodeQueryStringValues;
 
     if (signMethod === 'bitget') {
       const signRequestParams =
         method === 'GET'
-          ? serializeParams(data, strictParamValidation, '?')
+          ? serializeParams(
+              data,
+              strictParamValidation,
+              encodeQueryStringValues,
+              '?',
+            )
           : JSON.stringify(data) || '';
 
       const paramsStr =
@@ -228,7 +279,7 @@ export default abstract class BaseRestClient {
 
     console.error(
       new Date(),
-      neverGuard(signMethod, `Unhandled sign method: "${signMessage}"`)
+      neverGuard(signMethod, `Unhandled sign method: "${signMessage}"`),
     );
 
     return res;
@@ -239,21 +290,21 @@ export default abstract class BaseRestClient {
     endpoint: string,
     signMethod: SignMethod,
     params?: TParams,
-    isPublicApi?: true
+    isPublicApi?: true,
   ): Promise<UnsignedRequest<TParams>>;
   private async prepareSignParams<TParams extends object | undefined>(
     method: Method,
     endpoint: string,
     signMethod: SignMethod,
     params?: TParams,
-    isPublicApi?: false | undefined
+    isPublicApi?: false | undefined,
   ): Promise<SignedRequest<TParams>>;
   private async prepareSignParams<TParams extends object | undefined>(
     method: Method,
     endpoint: string,
     signMethod: SignMethod,
     params?: TParams,
-    isPublicApi?: boolean
+    isPublicApi?: boolean,
   ) {
     if (isPublicApi) {
       return {
@@ -275,7 +326,7 @@ export default abstract class BaseRestClient {
     endpoint: string,
     url: string,
     params?: any,
-    isPublicApi?: boolean
+    isPublicApi?: boolean,
   ): Promise<AxiosRequestConfig> {
     const options: AxiosRequestConfig = {
       ...this.globalRequestOptions,
@@ -301,27 +352,33 @@ export default abstract class BaseRestClient {
       endpoint,
       'bitget',
       params,
-      isPublicApi
+      isPublicApi,
     );
 
-    if (!options.headers) {
-      options.headers = {};
-    }
-    options.headers['ACCESS-KEY'] = this.apiKey;
-    options.headers['ACCESS-PASSPHRASE'] = this.apiPass;
-    options.headers['ACCESS-TIMESTAMP'] = signResult.timestamp;
-    options.headers['ACCESS-SIGN'] = signResult.sign;
-    options.headers['Content-Type'] = 'application/json';
+    const authHeaders = {
+      'ACCESS-KEY': this.apiKey,
+      'ACCESS-PASSPHRASE': this.apiPass,
+      'ACCESS-TIMESTAMP': signResult.timestamp,
+      'ACCESS-SIGN': signResult.sign,
+    };
 
     if (method === 'GET') {
       return {
         ...options,
+        headers: {
+          ...authHeaders,
+          ...options.headers,
+        },
         url: options.url + signResult.queryParamsWithSign,
       };
     }
 
     return {
       ...options,
+      headers: {
+        ...authHeaders,
+        ...options.headers,
+      },
       data: params,
     };
   }

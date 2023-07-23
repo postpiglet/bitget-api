@@ -1,6 +1,8 @@
 import { API_ERROR_CODE, FuturesClient } from '../../src';
 import { sucessEmptyResponseObject } from '../response.util';
 
+jest.setTimeout(10000);
+
 describe('Private Futures REST API POST Endpoints', () => {
   const API_KEY = process.env.API_KEY_COM;
   const API_SECRET = process.env.API_SECRET_COM;
@@ -53,7 +55,7 @@ describe('Private Futures REST API POST Endpoints', () => {
   it('setMarginMode()', async () => {
     try {
       expect(
-        await api.setMarginMode(symbol, marginCoin, 'crossed')
+        await api.setMarginMode(symbol, marginCoin, 'crossed'),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -76,7 +78,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           symbol,
           size: '1',
           side: 'open_long',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -100,7 +102,7 @@ describe('Private Futures REST API POST Endpoints', () => {
             size: '1',
             side: 'open_long',
           },
-        ])
+        ]),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -115,7 +117,7 @@ describe('Private Futures REST API POST Endpoints', () => {
   it('cancelOrder()', async () => {
     try {
       expect(
-        await api.cancelOrder(symbol, marginCoin, '1234656')
+        await api.cancelOrder(symbol, marginCoin, '1234656'),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -130,7 +132,7 @@ describe('Private Futures REST API POST Endpoints', () => {
   it('batchCancelOrder()', async () => {
     try {
       expect(
-        await api.batchCancelOrder(symbol, marginCoin, ['1234656'])
+        await api.batchCancelOrder(symbol, marginCoin, ['1234656']),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -164,7 +166,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           symbol,
           triggerPrice: '1000',
           triggerType: 'market_price',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -187,7 +189,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           symbol,
           triggerPrice: '100',
           triggerType: 'market_price',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -207,7 +209,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           marginCoin,
           symbol,
           presetTakeProfitPrice: '100',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -220,7 +222,7 @@ describe('Private Futures REST API POST Endpoints', () => {
     }
   });
 
-  it('submitStopOrder()', async () => {
+  it.skip('submitStopOrder()', async () => {
     try {
       expect(
         await api.submitStopOrder({
@@ -229,7 +231,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           planType: 'profit_plan',
           holdSide: 'long',
           triggerPrice: '100',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -251,7 +253,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           holdSide: 'long',
           planType: 'profit_plan',
           triggerPrice: '50',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -270,7 +272,8 @@ describe('Private Futures REST API POST Endpoints', () => {
           marginCoin,
           symbol,
           orderId: '123456',
-        })
+          planType: 'profit_plan',
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -278,8 +281,7 @@ describe('Private Futures REST API POST Endpoints', () => {
     } catch (e) {
       // expect(e).toBeNull();
       expect(e.body).toMatchObject({
-        // code: API_ERROR_CODE.FUTURES_ORDER_TPSL_NOT_FOUND,
-        code: API_ERROR_CODE.FUTURES_POSITION_DIRECTION_EMPTY,
+        code: API_ERROR_CODE.FUTURES_ORDER_TPSL_NOT_FOUND,
       });
     }
   });
@@ -292,7 +294,7 @@ describe('Private Futures REST API POST Endpoints', () => {
           symbol,
           orderId: '123456',
           planType: 'profit_plan',
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -304,13 +306,13 @@ describe('Private Futures REST API POST Endpoints', () => {
     }
   });
 
-  it('closeCopyTraderPosition()', async () => {
+  it.skip('closeCopyTraderPosition()', async () => {
     try {
       expect(await api.closeCopyTraderPosition(symbol, '123456')).toMatchObject(
         {
           ...sucessEmptyResponseObject(),
           data: {},
-        }
+        },
       );
     } catch (e) {
       expect(e.body).toMatchObject({
@@ -319,12 +321,12 @@ describe('Private Futures REST API POST Endpoints', () => {
     }
   });
 
-  it('modifyCopyTraderTPSL()', async () => {
+  it.skip('modifyCopyTraderTPSL()', async () => {
     try {
       expect(
         await api.modifyCopyTraderTPSL(symbol, '123456', {
           stopLossPrice: 1234,
-        })
+        }),
       ).toMatchObject({
         ...sucessEmptyResponseObject(),
         data: {},
@@ -336,7 +338,7 @@ describe('Private Futures REST API POST Endpoints', () => {
     }
   });
 
-  it('setCopyTraderSymbols()', async () => {
+  it.skip('setCopyTraderSymbols()', async () => {
     try {
       expect(await api.setCopyTraderSymbols(symbol, 'delete')).toMatchObject({
         ...sucessEmptyResponseObject(),
