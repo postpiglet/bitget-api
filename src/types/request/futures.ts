@@ -88,6 +88,15 @@ export interface NewBatchFuturesOrder {
   clientOid?: string;
 }
 
+export interface FuturesHistoricPositions {
+  startTime: string;
+  endTime: string;
+  productType?: FuturesProductType;
+  symbol?: string;
+  pageSize?: number;
+  lastEndId?: string;
+}
+
 export interface FuturesPagination {
   startTime?: string;
   endTime?: string;
@@ -128,7 +137,14 @@ export interface ModifyFuturesPlanOrderTPSL {
   presetStopLossPrice?: string;
 }
 
-export type FuturesPlanType = 'profit_plan' | 'loss_plan' | 'moving_plan';
+export type FuturesPlanType =
+  | 'profit_plan'
+  | 'loss_plan'
+  | 'normal_plan'
+  | 'pos_profit'
+  | 'pos_loss'
+  | 'moving_plan'
+  | 'track_plan';
 
 export interface NewFuturesPlanStopOrder {
   symbol: string;
