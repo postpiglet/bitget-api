@@ -258,24 +258,14 @@ class CandleInfo {
   {
     if(side == POSITION_SIDE.LONG)
     {
-      if(this.sma20Array[this.sma20Array.length-gap] > this.sma200Array[this.sma200Array.length-gap])
+      if(this.closeArray[this.closeArray.length-gap] > this.sma200Array[this.sma200Array.length-gap])
       {
-        return true;
-      }
-      if(this.sma50Array[this.sma50Array.length-gap] < this.sma100Array[this.sma100Array.length-gap]
-        && this.sma100Array[this.sma100Array.length-gap] < this.sma200Array[this.sma200Array.length-gap])
-      {
-        return true;
+          return true;
       }
     }
     else if(side == POSITION_SIDE.SHORT)
     {
-      if(this.sma20Array[this.sma20Array.length-gap] < this.sma200Array[this.sma200Array.length-gap])
-      {
-        return true;
-      }
-      else if(this.sma50Array[this.sma50Array.length-gap] > this.sma100Array[this.sma100Array.length-gap]
-        && this.sma100Array[this.sma100Array.length-gap] > this.sma200Array[this.sma200Array.length-gap])
+      if(this.closeArray[this.closeArray.length-gap] < this.sma200Array[this.sma200Array.length-gap])
       {
         return true;
       }
@@ -291,9 +281,13 @@ class CandleInfo {
       && this.sma100Array[this.sma100Array.length-gap] > this.sma200Array[this.sma200Array.length-gap])
       {
         // 20일선만 200일선 밑인 경우
-        if(this.sma20Array[this.sma20Array.length-gap] < this.sma200Array[this.sma200Array.length-gap])
+        if(this.sma20Array[this.sma20Array.length-gap] < this.sma200Array[this.sma200Array.length-gap]
+          && this.sma20Array[this.sma20Array.length-gap-1] >= this.sma200Array[this.sma200Array.length-gap-1])
         {
-          return POSITION_SIDE.LONG;
+          if(this.closeArray[this.closeArray.length-gap] < this.sma20Array[this.sma20Array.length-gap])
+          {
+            return POSITION_SIDE.LONG;
+          }
         }
       }
     // 하락추세(정배열)
@@ -301,13 +295,37 @@ class CandleInfo {
       && this.sma100Array[this.sma100Array.length-gap] < this.sma200Array[this.sma200Array.length-gap])
       {
         // 20일선만 200일선 위인 경우
-        if(this.sma20Array[this.sma20Array.length-gap] > this.sma200Array[this.sma200Array.length-gap])
+        if(this.sma20Array[this.sma20Array.length-gap] > this.sma200Array[this.sma200Array.length-gap]
+          && this.sma20Array[this.sma20Array.length-gap-1] <= this.sma200Array[this.sma200Array.length-gap-1])
         {
-          return POSITION_SIDE.SHORT;
+          if(this.closeArray[this.closeArray.length-gap] > this.sma20Array[this.sma20Array.length-gap])
+          {
+            return POSITION_SIDE.SHORT;
+          }
         }
       }
 
     return POSITION_SIDE.NONE;
+  }
+
+  public GetOpenPosion2(side:POSITION_SIDE, gap:number) : boolean
+  {
+    if(side == POSITION_SIDE.LONG)
+    {
+      if(this.sma50Array[this.sma50Array.length-gap] < this.sma200Array[this.sma200Array.length-gap])
+      {
+          return true;
+      }
+    }
+    else if(side == POSITION_SIDE.SHORT)
+    {
+      if(this.sma50Array[this.sma50Array.length-gap] > this.sma200Array[this.sma200Array.length-gap])
+      {
+        return true;
+      }
+    }
+
+    return false
   }
 
   public GetRecentLowestPrice(period:number) : number
@@ -455,6 +473,12 @@ async function EnterPositionCheck(candleInfoDic:Map<string, CandleInfo>, symbol:
   if(orderInfo == undefined)
     return;
 
+  let recentCloseTimeStamp:number = orderInfo.recentCloseTimeStamp ?? 0
+  let recentOpenTimeStamp:number = orderInfo.recentOpenTimeStamp ?? 0
+  if(Date.now() - recentCloseTimeStamp < 1000 * 60
+    || Date.now() - recentOpenTimeStamp < 1000 * 60)
+    return;
+
   try
   {
     let candleInfo:CandleInfo|undefined = candleInfoDic.get(symbol)
@@ -471,12 +495,12 @@ async function EnterPositionCheck(candleInfoDic:Map<string, CandleInfo>, symbol:
       {
         case POSITION_SIDE.LONG:
           lock = true
-          await openPosition(POSITION_SIDE.LONG, symbol, (1 / (openMaxCount - openAccumCount++)));
+          await openPosition(POSITION_SIDE.LONG, symbol, (1 / ((openMaxCount - openAccumCount++))));
           lock = false
           break;
         case POSITION_SIDE.SHORT:
           lock = true
-          await openPosition(POSITION_SIDE.SHORT, symbol, (1 / (openMaxCount - openAccumCount++)));
+          await openPosition(POSITION_SIDE.SHORT, symbol, (1 / ((openMaxCount - openAccumCount++))));
           lock = false
           break;
       }
@@ -491,16 +515,25 @@ async function EnterPositionCheck(candleInfoDic:Map<string, CandleInfo>, symbol:
       }
       else
       {
-        if(getOpenPosition != POSITION_SIDE.NONE)
+        // if(candleInfo.GetOpenPosion2(orderInfo.side, 1))
+        // {
+        //   lock = true
+        //   await openPosition(orderInfo.side, symbol, 1);
+        //   lock = false
+        // }
+        // else
         {
-          if(orderInfo.side != getOpenPosition)
+          if(getOpenPosition != POSITION_SIDE.NONE)
           {
-            lock = true
-            await closePosition(symbol, orderInfo)
-            await WaitForOrderInfoReset(orderInfo)
-            lock = false
-            await EnterPositionCheck(candleInfoDic, symbol)
-            return;
+            if(orderInfo.side != getOpenPosition)
+            {
+              lock = true
+              await closePosition(symbol, orderInfo)
+              await WaitForOrderInfoReset(orderInfo)
+              lock = false
+              await EnterPositionCheck(candleInfoDic, symbol)
+              return;
+            }
           }
         }
       }
@@ -765,6 +798,7 @@ class OrderInfo {
   public forceOut:number
   public preMarkPrice : number
   public preSystemTime : number
+  public openCount : number
   // forTest
   public openPrice:number
 
@@ -789,6 +823,7 @@ class OrderInfo {
   {
     this.side = POSITION_SIDE.NONE
     this.leverage = 0
+    this.openCount = 0
   }
 }
 
@@ -850,7 +885,7 @@ let closeOrderIdArray:Array<FillDetailInfo>;
 
     //lock = true
     const symbolRulesResult = await client.getSymbols('umcbl');
-    //for(var i = 0; i < symbolRulesResult.data.length-20; ++i)
+    //for(var i = 0; i < symbolRulesResult.data.length-50; ++i)
     for(var i = 0; i < 50; ++i)
     {
         let symbol = symbolRulesResult.data[i].symbol.split('_')[0]
